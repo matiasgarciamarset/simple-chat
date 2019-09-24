@@ -1,0 +1,348 @@
+openapi: "3.0.0"
+info:
+  title: ASAPP Java Chat Challenge Project
+  version: v1
+  description: |
+    Download skeleton code: <a class="sc-gPEVay bjQuAn" href="challenge.zip">Download</a>
+
+    Welcome! This page describes a bare-bones REST API for a chat backend.
+    Your task is to implement this API using a the java skeleton code provided above.
+
+    ## Requirements
+
+    Your solution should implement basic security and persistence using a
+    relational database.
+
+    We very much value code quality and technical design. Think about the
+    structure of your data models and the readability of your code.
+
+    Also, for persistence, we strongly recommend the use of <a class="sc-gPEVay bjQuAn" href="https://www.sqlite.org/index.html">SQLite 3</a>.
+    Otherwise, you will need to justify in all aspects the use of other way of persistence.
+
+    ## Follow-up discussion
+
+    We’ll discuss this as part of the project review. Don't worry if you don't
+    have all the answers off the top of your head. We’re very much looking for
+    your ability to reason about and work through these kinds of questions.
+
+    How well does your project scale? What if the number of users grow to 1000?
+    To 1000000? (And the conversation history grows too.)
+
+    What if you had users around the globe? How do you keep the application
+    responsive? (Latency becomes problematic if you’re still running in just
+    one region. But if you have servers in Japan and servers in the US, how do
+    they coordinate?)
+
+    Given the time available, you may not be able to implement every feature,
+    write tests, handle errors, or refactor the code to your satisfaction.
+    That's okay -- those things are great topics for discussion as well.
+
+    ## Skeleton code
+
+    Here are some brief notes on getting up and running with the [skeleton code].
+    
+    After following the instructions (in README.md) from the downloaded skeleton code of how running the server, you
+    can check if everything is working by running
+    ```
+    curl -s -d '' -XPOST http://localhost:8080/check
+    ```
+    which should return `{"health": "ok"}`.
+
+    Once in the code your will notice that all endpoints, explained deeply below, are already implemented within the controller
+    package and their respected `paths` or `routes` are defined in the `Application.java`. Deeply in each controller you will find `//TODO` comments
+    where you will need to complete with the expected functionality.
+
+    Feel free to add packages, frameworks, java files and the resources you think necessary to implement this challenge; and, if there are any doubts or
+    concerns, please don't be afraid of asking!
+servers:
+  - url: http://localhost:8080
+paths:
+  /check:
+    post:
+      operationId: Health Check
+      description: |
+        Check the health of the system.
+
+        This endpoint is already implemented in the sample code.
+      responses:
+        200:
+          description: Success
+          content:
+            application/json:
+              schema:
+                required:
+                  - health
+                properties:
+                  health:
+                    type: string
+                    enum:
+                      - ok
+  /users:
+    post:
+      operationId: Create a new User
+      description: |
+        Create a user in the system.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              required:
+                - username
+                - password
+              properties:
+                username:
+                  type: string
+                password:
+                  type: string
+                  format: password
+      responses:
+        200:
+          description: Success
+          content:
+            application/json:
+              schema:
+                required:
+                  - id
+                properties:
+                  id:
+                    type: integer
+                    format: int64
+                    description: |
+                      User ID of the newly created user.
+  /login:
+    post:
+      operationId: Login
+      description: |
+        Log in as an existing user.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              required:
+                - username
+                - password
+              properties:
+                username:
+                  type: string
+                password:
+                  type: string
+                  format: password
+      responses:
+        200:
+          description: Success
+          content:
+            application/json:
+              schema:
+                required:
+                  - id
+                  - token
+                properties:
+                  id:
+                    type: integer
+                    format: int64
+                    description: |
+                      User ID of the user who logged in.
+                  token:
+                    type: string
+                    description: |
+                      Authentication token to use for API calls on behalf of
+                      this user.
+  /messages:
+    post:
+      operationId: Send a Message
+      description: |
+        Send a message from one user to another. We support three types of
+        messages `text`, `image` and `video` (the latter two types include
+        metadata). A real-world server would fetch the image/video URL to
+        extract the metadata, but for our purposes it's enough to hardcode
+        those metadata fields - we're more interested in how you decide to
+        persist those fields.
+      security:
+        - token: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              required:
+                - sender
+                - recipient
+                - content
+              properties:
+                sender:
+                  type: integer
+                  format: int64
+                  description: |
+                    User ID of sender.
+                recipient:
+                  type: integer
+                  format: int64
+                  description: |
+                    User ID of recipient.
+                content:
+                  $ref: "#/components/schemas/Content"
+      responses:
+        200:
+          description: Success
+          content:
+            application/json:
+              schema:
+                required:
+                  - id
+                  - timestamp
+                properties:
+                  id:
+                    type: integer
+                    format: int64
+                    description: |
+                      Message IDs are required to be unique and increase over
+                      time; they may or may not be sequential.
+                  timestamp:
+                    type: string
+                    format: date-time
+                    description: |
+                      Timestamp for this message, as recorded on the server.
+    get:
+      operationId: Get Messages
+      description: |
+        Fetch all existing messages to a given recipient, within a range of
+        message IDs.
+      security:
+        - token: []
+      parameters:
+        - name: recipient
+          in: query
+          required: true
+          schema:
+            type: integer
+            format: int64
+            description: |
+              User ID of recipient.
+        - name: start
+          in: query
+          required: true
+          schema:
+            type: integer
+            description: |
+              Starting message ID. Messages will be returned in increasing
+              order of message ID, starting from this value (or the next lowest
+              value stored in the database).
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 100
+            description: |
+              Limit the response to this many messages.
+      responses:
+        200:
+          description: Success
+          content:
+            application/json:
+              schema:
+                required:
+                  - messages
+                properties:
+                  messages:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Message"
+components:
+  securitySchemes:
+    token:
+      type: http
+      description: |
+        Obtain a token from the login endpoint, then pass it into the other
+        endpoints as an `Authorization` header.
+      in: header
+      scheme: bearer
+  schemas:
+    Message:
+      required:
+        - id
+        - timestamp
+        - sender
+        - recipient
+        - content
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: |
+            Message IDs are required to be unique and increase over time; they
+            may or may not be sequential.
+        timestamp:
+          type: string
+          format: date-time
+          description: |
+            UTC Timestamp at which server received this message.
+        sender:
+          type: integer
+          format: int64
+          description: |
+            User ID of message sender.
+        recipient:
+          type: integer
+          format: int64
+          description: |
+            User ID of message recipient.
+        content:
+          $ref: "#/components/schemas/Content"
+    Content:
+      description: |
+        Message content (one of three possible types).
+      required:
+        - type
+      properties:
+        type:
+          type: string
+      discriminator:
+        propertyName: type
+        mapping:
+          text: "#/components/schemas/Text"
+          image: "#/components/schemas/Image"
+          video: "#/components/schemas/Video"
+      oneOf:
+        - $ref: "#/components/schemas/Text"
+        - $ref: "#/components/schemas/Image"
+        - $ref: "#/components/schemas/Video"
+    Text:
+      required:
+        - type
+        - text
+      properties:
+        type:
+          type: string
+        text:
+          type: string
+    Image:
+      required:
+        - type
+        - url
+        - height
+        - width
+      properties:
+        type:
+          type: string
+        url:
+          type: string
+          format: uri
+        height:
+          type: integer
+        width:
+          type: integer
+    Video:
+      required:
+        - type
+        - url
+        - source
+      properties:
+        type:
+          type: string
+        url:
+          type: string
+          format: uri
+        source:
+          type: string
+          enum:
+            - youtube
+            - vimeo
